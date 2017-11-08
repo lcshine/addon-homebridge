@@ -1,65 +1,45 @@
-ARG BUILD_FROM=hassioaddons/base-amd64:1.0.1
-FROM ${BUILD_FROM}
+ARG BUILD_FROM
+FROM $BUILD_FROM
+#FROM %%BASE_IMAGE%%
+#FROM homeassistant/armhf-base:latest
+#armhf:FROM bestlibre/armhf-debian-base:stretch
+#aarch64:FROM bestlibre/aarch64-debian-base:stretch
+#amd64:FROM debian:stretch
+#i386:FROM i386/debian:stretch
+#MAINTAINER Franck Nijhof <frenck@geekchimp.com>
 
-# Copy root filesystem
-COPY rootfs /
+# Add env
+ENV LANG="C.UTF-8"
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Copy run file
+COPY files/run.sh /
 
 # Setup base
-RUN \
-    apk add --no-cache \
-        --repository http://nl.alpinelinux.org/alpine/edge/main \
-        libuv \
-    \
-    && apk add --no-cache \
-        --repository http://dl-cdn.alpinelinux.org/alpine/edge/community \
-        nodejs-current \
-        nodejs-current-npm \
-    \
-    && apk add --no-cache --virtual .build-dependencies \
-        avahi-dev \
-        g++ \
-        libffi-dev \
-        make \
-        openssl-dev \
-        python \
-    \
-    && apk add --no-cache \
-        avahi \
-        avahi-compat-libdns_sd \
-        dbus \
-        git \
-    \
-    && npm set unsafe-perm true \
-    \
-    && npm -g install \
-        node-gyp \
-        homebridge@0.4.29 \
-        homebridge-homeassistant@3.0.1 \
-    \
-    && apk del --purge .build-dependencies
+RUN apk add --no-cache jq git python make g++ libffi-dev openssl-dev dbus \
+      avahi-compat-libdns_sd avahi-dev avahi-tools avahi-ui-tools \
+      nodejs-current yarn && \
+    mkdir -p /var/run/dbus && \
+    mkdir -p /var/run/avahi-daemon && \
+    chown messagebus:messagebus /var/run/dbus && \
+    chown avahi:avahi /var/run/avahi-daemon && \
+    yarn global add npm && \
+    yarn cache clean && \
+    apk del yarn && \
+    npm set unsafe-perm true && \
+    npm -g install \
+      node-gyp \
+      homebridge \
+      homebridge-homeassistant \
+      homebridge-broadlink-rm \
+      homebridge-mi-air-purifier miio \
+      homebridge-xiaomi-mi-robot-vacuum \
+      homebridge-camera-ffmpeg \
+      homebridge-mi-aqara && \
+    chmod a+x /run.sh
 
-CMD [ "/usr/bin/run.sh" ]
+# Copy configuration files
+COPY files/avahi-daemon.conf /etc/avahi/
+COPY files/homebridge-config.json /root/
 
-# Build arugments
-ARG BUILD_ARCH
-ARG BUILD_DATE
-ARG BUILD_REF
-ARG BUILD_VERSION
-
-# Labels
-LABEL \
-    io.hass.name="Homebridge" \
-    io.hass.description="HomeKit support for your Home Assistant instance using Homebridge" \
-    io.hass.arch="${BUILD_ARCH}" \
-    io.hass.type="addon" \
-    io.hass.version=${BUILD_VERSION} \
-    maintainer="Franck Nijhof <frenck@addons.community>" \
-    org.label-schema.description="HomeKit support for your Home Assistant instance using Homebridge" \
-    org.label-schema.build-date=${BUILD_DATE} \
-    org.label-schema.name="Homebridge" \
-    org.label-schema.schema-version="1.0" \
-    org.label-schema.url="https://addons.community" \
-    org.label-schema.usage="https://github.com/hassio-addons/addon-homebridge/tree/master/README.md" \
-    org.label-schema.vcs-ref=${BUILD_REF} \
-    org.label-schema.vcs-url="https://github.com/hassio-addons/addon-homebridge" \
-    org.label-schema.vendor="Community Hass.io Add-ons"
+CMD [ "/run.sh" ]
