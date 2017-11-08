@@ -32,6 +32,7 @@ RUN apk add --no-cache jq git python make g++ libffi-dev openssl-dev dbus \
       homebridge \
       homebridge-homeassistant \
       homebridge-broadlink-rm \
+      homebridge-mqtt-switch-tasmota \
       homebridge-mi-air-purifier miio \
       homebridge-xiaomi-mi-robot-vacuum \
       homebridge-camera-ffmpeg \
